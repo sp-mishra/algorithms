@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include <boost/iterator/iterator_facade.hpp>
+#include <stack>
 
 namespace blib {
   namespace container {
@@ -89,12 +90,18 @@ namespace blib {
       // Tree Declaration
       template<typename NodeDataType>
       class Tree;
+      //=====================================================================
 
       //=====================================================================
-      // Iterators
+      // Iterators implementations
       namespace _private {
         //=====================================================================
         // PostOrder Iterators
+        // Post Order with out recursion and with 2 stacks
+        //Post - order
+        //  Traverse the left subtree by recursively calling the post - order function.
+        //  Traverse the right subtree by recursively calling the post - order function.
+        //  Display the data part of root element( or current element ).
         template<typename NodeType>
         class df_post_order_iterator :
           public boost::iterator_facade < df_post_order_iterator<NodeType>, NodeType, boost::forward_traversal_tag > {
@@ -105,7 +112,8 @@ namespace blib {
           typedef typename Tree<ValueType>::TreeType Tree;
 
           Tree& _tree;
-          std::vector<std::reference_wrapper<Node>> _stack;
+          std::stack<std::reference_wrapper<Node>> _stack1;
+          std::stack<std::reference_wrapper<Node>> _stack2;
 
         public:
           df_post_order_iterator( ) {}
@@ -113,31 +121,64 @@ namespace blib {
           df_post_order_iterator( Tree& aTree ) :
             _tree( aTree ) {
             if ( !_tree.empty( ) ) {
-              _stack.push_back( _tree.root( ) );
+              _stack1.push( _tree.root( ) );
             }
           }
 
         private:
-          bool equal( df_post_order_iterator const& aOther ) const {
+          bool equal1( df_post_order_iterator const& aOther ) const {
             bool ret = false;
-            if ( !_stack.empty( ) ) {
-              if ( _stack.back( ) == aOther._stack.back( ) ) {
+            if ( _stack1.size( ) == aOther._stack1.size( ) ) {
+              if ( _stack1.top( ) == aOther._stack1.top( ) ) {
                 ret = true;
               }
             }
             return ret;
           }
 
-          Node& dereference( ) const {
-            return _stack.back( );
+          bool equal2( df_post_order_iterator const& aOther ) const {
+            bool ret = false;
+            if ( _stack2.size( ) == aOther._stack2.size( ) ) {
+              if ( _stack2.top( ) == aOther._stack2.top( ) ) {
+                ret = true;
+              }
+            }
+            return ret;
           }
 
+          bool equal( df_post_order_iterator const& aOther ) const {
+            return equal1( aOther ) && equal2( aOther );
+          }
+
+          Node& dereference( ) const {
+            return _stack1.top( );
+          }
+
+          // http://www.geeksforgeeks.org/iterative-postorder-traversal/
+          //1. Push root to first stack.
+          //2. Loop while first stack is not empty
+          //  2.1 Pop a node from first stack and push it to second stack
+          //  2.2 Push left and right children of the popped node to first stack
+          //3. Print contents of second stack
           void increment( ) {
+            if ( _stack1.empty( ) ) {
+              return;
+            }
+
+            auto node = _stack1.top( );
+            _stack2.push( node );
+            for ( auto& n : node.children( ) ) {
+              _stack1.push( n );
+            }
           }
         };
 
         //=====================================================================
         // Preorder Iterators
+        //Algorithm Preorder( tree )
+        //  1. Visit the root.
+        //  2. Traverse the left subtree, i.e., call Preorder( left - subtree )
+        //  3. Traverse the right subtree, i.e., call Preorder( right - subtree )
         template<typename NodeType>
         class df_pre_order_iterator :
           public boost::iterator_facade < df_pre_order_iterator<NodeType>, NodeType, boost::forward_traversal_tag > {
@@ -163,7 +204,7 @@ namespace blib {
         private:
           bool equal( df_pre_order_iterator const& aOther ) const {
             bool ret = false;
-            if ( !_stack.empty( ) ) {
+            if ( _stack.size( ) == aOther._stack.size( ) ) {
               if ( _stack.back( ) == aOther._stack.back( ) ) {
                 ret = true;
               }
@@ -175,6 +216,15 @@ namespace blib {
             return _stack.back( );
           }
 
+          //iterativePreorder( node )
+          //  parentStack = empty stack
+          //  while ( not parentStack.isEmpty( ) or node != null )
+          //    if ( node != null )
+          //      visit( node )
+          //      if ( node.right != null ) parentStack.push( node.right )
+          //        node = node.left
+          //      else
+          //      node = parentStack.pop( )
           void increment( ) {
             if ( _stack.empty( ) ) {
               return;
@@ -190,6 +240,10 @@ namespace blib {
 
         //=====================================================================
         // Preorder Const Iterators
+        //Algorithm Preorder( tree )
+        //  1. Visit the root.
+        //  2. Traverse the left subtree, i.e., call Preorder( left - subtree )
+        //  3. Traverse the right subtree, i.e., call Preorder( right - subtree )
         template<typename NodeType>
         class df_const_pre_order_iterator :
           public boost::iterator_facade < df_pre_order_iterator<NodeType>, NodeType const, boost::forward_traversal_tag > {
@@ -213,7 +267,7 @@ namespace blib {
         private:
           bool equal( df_const_pre_order_iterator const& aOther ) const {
             bool ret = false;
-            if ( !_stack.empty( ) ) {
+            if ( _stack.size( ) == aOther._stack.size( ) ) {
               if ( _stack.back( ) == aOther._stack.back( ) ) {
                 ret = true;
               }
@@ -225,6 +279,15 @@ namespace blib {
             return _stack.back( );
           }
 
+          //iterativePreorder( node )
+          //  parentStack = empty stack
+          //  while ( not parentStack.isEmpty( ) or node != null )
+          //    if ( node != null )
+          //      visit( node )
+          //      if ( node.right != null ) parentStack.push( node.right )
+          //        node = node.left
+          //      else
+          //      node = parentStack.pop( )
           void increment( ) {
             if ( _stack.empty( ) ) {
               return;
