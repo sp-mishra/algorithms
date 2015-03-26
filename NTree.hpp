@@ -4,7 +4,6 @@
 #include <vector>
 #include <functional>
 #include <boost/iterator/iterator_facade.hpp>
-#include <stack>
 
 namespace blib {
   namespace container {
@@ -14,6 +13,7 @@ namespace blib {
       //=====================================================================
       // Tree Iterators implementations
       namespace _private {
+        // Left to right iterator for child nodes
         template<typename NodeType>
         class child_node_ltor_iterator :
           public boost::iterator_facade < child_node_ltor_iterator<NodeType>, NodeType, boost::forward_traversal_tag > {
@@ -21,8 +21,10 @@ namespace blib {
           typedef NodeType Node;
           typedef Node& NodeRef;
           typedef Node const& ConstNodeRef;
-          typedef typename Node::ChildrenContainerType ChildrenContainerType;
           typedef child_node_ltor_iterator<NodeType> SelfType;
+
+        private:
+          typedef typename Node::ChildrenContainerType ChildrenContainerType;
           typedef typename ChildrenContainerType::iterator ItrType;
 
           friend class IteratorUtility;
@@ -36,6 +38,55 @@ namespace blib {
           }
 
           explicit child_node_ltor_iterator( ItrType& aBegin, ItrType& aEnd ) {
+            _it = aBegin;
+            _end = aEnd;
+          }
+
+        private:
+          friend class boost::iterator_core_access;
+
+          bool equal( SelfType const& aOther ) const {
+            return aOther._it == _it;
+          }
+
+          NodeRef dereference( ) const {
+            return *_it;
+          }
+
+          void increment( ) {
+            ++_it;
+          }
+
+          ItrType itr( ) {
+            return _it;
+          }
+        };
+
+        // Right to left iterator for child nodes
+        template<typename NodeType>
+        class child_node_rtol_iterator :
+          public boost::iterator_facade < child_node_rtol_iterator<NodeType>, NodeType, boost::forward_traversal_tag > {
+        public:
+          typedef NodeType Node;
+          typedef Node& NodeRef;
+          typedef Node const& ConstNodeRef;
+          typedef child_node_rtol_iterator<NodeType> SelfType;
+
+        private:
+          typedef typename Node::ChildrenContainerType ChildrenContainerType;
+          typedef typename ChildrenContainerType::reverse_iterator ItrType;
+
+          friend class IteratorUtility;
+        private:
+          ItrType _it;
+          ItrType _end;
+
+        public:
+          child_node_rtol_iterator( ) {
+            _it = _end;
+          }
+
+          explicit child_node_rtol_iterator( ItrType& aBegin, ItrType& aEnd ) {
             _it = aBegin;
             _end = aEnd;
           }
@@ -82,6 +133,7 @@ namespace blib {
         typedef NodeType const& ConstNodeRef;
         typedef std::vector<NodeType> ChildrenContainerType;
         typedef _private::child_node_ltor_iterator<Node<NodeDataType>> child_node_ltor_iterator;
+        typedef _private::child_node_rtol_iterator<Node<NodeDataType>> child_node_rtol_iterator;
 
       private:
         std::shared_ptr<ValueType> _data;
@@ -117,10 +169,6 @@ namespace blib {
         void data( ConstValueRef aData ) {
           assignData( aData );
         }
-
-        //ChildrenContainerType& children( ) {
-        // return _children;
-        //}
 
         ValueRef operator[]( const std::size_t aIndex ) {
           return _children.at( aIndex );
@@ -199,6 +247,16 @@ namespace blib {
 
         child_node_ltor_iterator child_node_ltor_end( ) {
           child_node_ltor_iterator it( _children.end( ), _children.end( ) );
+          return it;
+        }
+
+        child_node_rtol_iterator child_node_rtol_begin( ) {
+          child_node_rtol_iterator it( _children.rbegin( ), _children.rend( ) );
+          return it;
+        }
+
+        child_node_rtol_iterator child_node_rtol_end( ) {
+          child_node_rtol_iterator it( _children.rend( ), _children.rend( ) );
           return it;
         }
       };
