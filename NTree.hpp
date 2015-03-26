@@ -8,10 +8,8 @@
 namespace blib {
   namespace container {
     namespace tree {
-      template<typename NodeDataType>
-      class Node;
       //=====================================================================
-      // Tree Iterators implementations
+      // Node Iterators implementations
       namespace _private {
         // Left to right iterator for child nodes
         template<typename NodeType>
@@ -129,6 +127,7 @@ namespace blib {
         typedef ValueType& ValueRef;
         typedef ValueType const& ConstValueRef;
         typedef Node<NodeDataType> NodeType;
+        typedef NodeType SelfType;
         typedef NodeType& NodeRef;
         typedef NodeType const& ConstNodeRef;
         typedef std::vector<NodeType> ChildrenContainerType;
@@ -137,6 +136,7 @@ namespace blib {
 
       private:
         std::shared_ptr<ValueType> _data;
+        NodeType* _parent;
         ChildrenContainerType _children;
 
       private:
@@ -144,18 +144,26 @@ namespace blib {
           if ( _data ) {
             return *_data;
           }
-        }
-
-        void assignData( ConstValueRef aData ) {
-          _data.reset( new ValueType );
-          *_data = aData;
+          else {
+            // Throw exception here
+          }
         }
 
       public:
-        Node( ) {}
+        Node( NodeType* aParent = nullptr ) :
+          _parent( aParent ) {}
 
-        Node( ConstValueRef aData ) {
-          assignData( aData );
+        Node( ConstValueRef aData, NodeType* aParent = nullptr ) :
+          _parent( aParent ) {
+          _data = std::make_shared<ValueType>( aData );
+        }
+
+        NodeType* parent( ) {
+          return _parent;
+        }
+
+        void parent( NodeType* aParent ) {
+          _parent = aParent;
         }
 
         ValueRef data( ) {
@@ -167,9 +175,10 @@ namespace blib {
         }
 
         void data( ConstValueRef aData ) {
-          assignData( aData );
+          _data = std::make_shared<ValueType>( aData );
         }
 
+        // Access the children by index.
         ValueRef operator[]( const std::size_t aIndex ) {
           return _children.at( aIndex );
         }
@@ -180,15 +189,17 @@ namespace blib {
 
         void addChild( ConstNodeRef aNode ) {
           _children.push_back( aNode );
+          _children.back( ).parent( this );
         }
 
         void addChild( NodeType&& aNode ) {
           _children.push_back( aNode );
+          _children.back( ).parent( this );
         }
 
         void addChild( ConstValueRef aValue ) {
-          const NodeType n( aValue );
-          addChild( n );
+          const NodeType n( aValue, this );
+          _children.push_back( n );
         }
 
         //The iterator pos must be valid and dereferenceable. 
@@ -214,18 +225,26 @@ namespace blib {
 
         bool operator==( ConstNodeRef aOther ) const {
           bool ret = false;
-          if ( aOther.data( ) == _data ) {
-            if ( aOther._children.size( ) == _children.size( ) ) {
-              ret = true;
+          if ( aOther._parent == _parent ) {
+            if ( aOther._data == _data ) {
+              if ( aOther._children.size( ) == _children.size( ) ) {
+                ret = true;
+              }
             }
           }
+
           return ret;
         }
 
         NodeRef operator=( ConstNodeRef aOther ) {
+          _parent = aOther._parent;
           _data = aOther._data;
           _children = aOther._children;
           return *this;
+        }
+
+        bool isLeaf( ) const {
+          return _children.empty( );
         }
 
         // To support range based for loop
