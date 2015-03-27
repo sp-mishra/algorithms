@@ -162,6 +162,10 @@ namespace blib {
           _data = std::make_shared<ValueType>( aData );
         }
 
+        ~Node( ) {
+          clear( );
+        }
+
         NodeType* parent( ) {
           return _parent;
         }
@@ -222,9 +226,8 @@ namespace blib {
 
         void clear( ) {
           _data.reset( );
-          for ( auto child : _children ) {
-            child.clear( );
-          }
+          _children.clear( );
+          _parent = nullptr;
         }
 
         bool operator==( ConstNodeRef aOther ) const {
@@ -286,8 +289,60 @@ namespace blib {
 
       //=====================================================================
       // Tree Declaration
-      template<typename NodeDataType>
+      template<typename NodeType>
       class Tree;
+      //=====================================================================
+
+      //=====================================================================
+      // Tree Definition
+      template<typename NodeType>
+      class Tree {
+      public:
+        typedef NodeType Node;
+        typedef typename Node::ValueType ValueType;
+        typedef typename Node::ValueRef ValueRef;
+        typedef typename Node::ConstValueRef ConstValueRef;
+        typedef typename Node::NodeRef NodeRef;
+        typedef typename Node::ConstNodeRef ConstNodeRef;
+        typedef typename Node::ChildrenContainerType ChildrenContainerType;
+        typedef typename Node::child_node_ltor_iterator child_node_ltor_iterator;
+        typedef typename Node::child_node_rtol_iterator child_node_rtol_iterator;
+        typedef Tree<Node> SelfType;
+
+      private:
+        std::shared_ptr<Node> _root;
+
+      public:
+        Tree( ) {}
+
+        Tree( ConstNodeRef aNode ) {
+          root( aNode );
+        }
+
+        ~Tree( ) {
+          clear( );
+        }
+
+        void root( ConstNodeRef aNode ) {
+          _root = std::make_shared<Node>( aNode );
+        }
+
+        void clear( ) {
+          if ( _root ) {
+            _root->clear( );
+          }
+          _root.reset( );
+        }
+
+        SelfType& operator=( SelfType const& aOther ) {
+          _root = aOther;
+          return *this;
+        }
+
+        bool operator==( SelfType const& aOther ) const {
+          return aOther._root == _root;
+        }
+      };
       //=====================================================================
     }
   }
