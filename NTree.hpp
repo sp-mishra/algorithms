@@ -221,7 +221,15 @@ namespace blib {
         }
 
         bool empty( ) const {
-          return _data && _children.empty( );
+          return !_data && _children.empty( );
+        }
+
+        operator bool( ) const {
+          bool ret = false;
+          if ( _data ) {
+            ret = true;
+          }
+          return ret;
         }
 
         void clear( ) {
@@ -308,9 +316,10 @@ namespace blib {
         typedef typename Node::child_node_ltor_iterator child_node_ltor_iterator;
         typedef typename Node::child_node_rtol_iterator child_node_rtol_iterator;
         typedef Tree<Node> SelfType;
+        typedef std::shared_ptr<Node> NodeSharedPtr;
 
       private:
-        std::shared_ptr<Node> _root;
+        NodeSharedPtr _root;
 
       public:
         Tree( ) {}
@@ -325,6 +334,22 @@ namespace blib {
 
         void root( ConstNodeRef aNode ) {
           _root = std::make_shared<Node>( aNode );
+        }
+
+        NodeRef root( ) {
+          return *_root;
+        }
+
+        bool empty( ) const {
+          return !_root;
+        }
+
+        operator bool( ) const {
+          bool ret = false;
+          if ( _root ) {
+            ret = true;
+          }
+          return ret;
         }
 
         void clear( ) {
