@@ -120,70 +120,156 @@ namespace blib {
             return aItr.itr( );
           }
         };
+
+
+        //=====================================================================
+        // Node Handle
+        template<class NodeType>
+        class NodeHandleImpl {
+        public:
+          typedef NodeType Node;
+          typedef NodeHandleImpl<Node> SelfType;
+
+        private:
+          Node const* _handle;
+          friend class NodeUtility;
+
+        private:
+          Node const* const pointer( ) const {
+            return const_cast< Node const* const >( _handle );
+          }
+
+        public:
+          NodeHandleImpl( Node const* const aPtr = nullptr ) :
+            _handle( const_cast< Node const* >( aPtr ) ) {}
+
+          NodeHandleImpl( SelfType const& aNode ) :
+            _handle( aNode._handle ) {}
+
+          NodeHandleImpl( Node const& aNode ) :
+            _handle( aNode.handle( )._handle ) {}
+
+          ~NodeHandleImpl( ) {
+            _handle = nullptr;
+          }
+
+          bool operator==( SelfType const& aNode ) const {
+            return aNode._handle == _handle;
+          }
+
+          bool operator==( Node const& aNode ) const {
+            return aNode.handle( )._handle == _handle;
+          }
+
+          SelfType& operator=( SelfType const& aNode ) {
+            _handle = aNode._handle;
+            return *this;
+          }
+
+          operator bool( ) const {
+            bool ret = false;
+            if ( _handle ) {
+              ret = true;
+            }
+            return ret;
+          }
+        };
+
+        class NodeUtility {
+        public:
+          template<typename NodeType>
+          NodeType const * const getNodeInternal( NodeHandleImpl<NodeType> const& aNodeHandle ) {
+            return const_cast< NodeType const * const >( aNodeHandle._handle );
+          }
+        };
       } // _private
 
       //=====================================================================
+      // Node Handle
+      template<class NodeType>
+      class NodeHandle :
+        public _private::NodeHandleImpl < NodeType > {
+      private:
+        typedef NodeHandleImpl<NodeType> BaseType;
+
+      public:
+        NodeHandle( Node const* const aPtr = nullptr ) :
+          BaseType( aPtr ) {}
+
+        NodeHandle( SelfType const& aNode ) :
+          BaseType( aNode ) {}
+
+        NodeHandle( Node const& aNode ) :
+          BaseType( aNode ) {}
+      };
+
+      //=====================================================================
       // Tree Node
-      template<typename NodeDataType>
+      template<
+        typename NodeDataType,
+        typename DataAlloc = std::allocator<NodeDataType>,
+        template<typename>class NodeAlloc = std::allocator>
       class Node {
       public:
         typedef NodeDataType ValueType;
         typedef ValueType& ValueRef;
         typedef ValueType const& ConstValueRef;
-        typedef Node<NodeDataType> NodeType;
+        typedef Node<NodeDataType, DataAlloc, NodeAlloc> NodeType;
         typedef NodeType SelfType;
         typedef NodeType& NodeRef;
         typedef NodeType const& ConstNodeRef;
-        typedef std::vector<NodeType> ChildrenContainerType;
         typedef _private::child_node_ltor_iterator<Node<NodeDataType>> child_node_ltor_iterator;
         typedef _private::child_node_rtol_iterator<Node<NodeDataType>> child_node_rtol_iterator;
+        typedef NodeHandle<SelfType> NodeHandle;
+        typedef NodeAlloc<SelfType> NodeAllocator;
+        typedef DataAlloc DataAllocator;
+
+      private:
+        friend class child_node_ltor_iterator;
+        friend class child_node_rtol_iterator;
+        typedef std::vector<NodeType, NodeAllocator> ChildrenContainerType;
 
       private:
         std::shared_ptr<ValueType> _data;
-        NodeType* _parent;
+        NodeHandle _parent;
         ChildrenContainerType _children;
 
-      private:
-        ValueRef get( ) {
-          if ( _data ) {
-            return *_data;
-          }
-          else {
-            // Throw exception here
-          }
-        }
-
       public:
-        Node( NodeType* aParent = nullptr ) :
+        Node( NodeHandle const& aParent = NodeHandle( ) ) :
           _parent( aParent ) {}
 
-        Node( ConstValueRef aData, NodeType* aParent = nullptr ) :
+        Node( ConstValueRef aData, NodeHandle const& aParent ) :
           _parent( aParent ) {
-          _data = std::make_shared<ValueType>( aData );
+          _data = std::allocate_shared<ValueType>( DataAllocator( ), aData );
         }
 
         ~Node( ) {
           clear( );
         }
 
-        NodeType* parent( ) {
+        NodeHandle& parent( ) const {
           return _parent;
         }
 
-        void parent( NodeType* aParent ) {
+        void parent( NodeHandle const& aParent ) {
           _parent = aParent;
         }
 
+        NodeHandle handle( ) const {
+          NodeHandle ret( this );
+          return ret;
+        }
+
         ValueRef data( ) {
-          return get( );
+          return *_data;;
         }
 
         ConstValueRef data( ) const {
-          return get( );
+          return *_data;;
         }
 
         void data( ConstValueRef aData ) {
-          _data = std::make_shared<ValueType>( aData );
+          _data = std::allocate_shared<ValueType>( DataAllocator( ), aData );
         }
 
         // Access the children by index.
@@ -197,16 +283,16 @@ namespace blib {
 
         void addChild( ConstNodeRef aNode ) {
           _children.push_back( aNode );
-          _children.back( ).parent( this );
+          _children.back( ).parent( handle( ) );
         }
 
         void addChild( NodeType&& aNode ) {
           _children.push_back( aNode );
-          _children.back( ).parent( this );
+          _children.back( ).parent( handle( ) );
         }
 
         void addChild( ConstValueRef aValue ) {
-          const NodeType n( aValue, this );
+          const NodeType n( aValue, handle( ) );
           _children.push_back( n );
         }
 
@@ -312,7 +398,8 @@ namespace blib {
         typedef typename Node::ConstValueRef ConstValueRef;
         typedef typename Node::NodeRef NodeRef;
         typedef typename Node::ConstNodeRef ConstNodeRef;
-        typedef typename Node::ChildrenContainerType ChildrenContainerType;
+        typedef typename Node::NodeAllocator NodeAllocator;
+        typedef typename Node::DataAllocator DataAllocator;
         typedef typename Node::child_node_ltor_iterator child_node_ltor_iterator;
         typedef typename Node::child_node_rtol_iterator child_node_rtol_iterator;
         typedef Tree<Node> SelfType;
@@ -332,11 +419,19 @@ namespace blib {
           clear( );
         }
 
+        void root( ConstValueRef aVal ) {
+          _root = std::allocate_shared<Node>( NodeAllocator( ), aVal );
+        }
+
         void root( ConstNodeRef aNode ) {
-          _root = std::make_shared<Node>( aNode );
+          _root = std::allocate_shared<Node>( NodeAllocator( ), aNode );
         }
 
         NodeRef root( ) {
+          return *_root;
+        }
+
+        ConstNodeRef root( ) const {
           return *_root;
         }
 
