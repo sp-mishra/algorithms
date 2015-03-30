@@ -7,7 +7,11 @@
 // Author: BrainlessLibraries
 
 #include <vector>
+#include <stack>
+#include <functional>
 #include <boost/iterator/iterator_facade.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 namespace blib {
   namespace container {
@@ -123,7 +127,7 @@ namespace blib {
 
 
         //=====================================================================
-        // Node Handle
+        // Node Handle Implementation
         template<class NodeType>
         class NodeHandleImpl {
         public:
@@ -175,11 +179,90 @@ namespace blib {
           }
         };
 
+        //=====================================================================
+        // Node Utility
         class NodeUtility {
         public:
           template<typename NodeType>
-          NodeType const * const getNodeInternal( NodeHandleImpl<NodeType> const& aNodeHandle ) {
+          static NodeType const * const getNodeInternal( NodeHandleImpl<NodeType> const& aNodeHandle ) {
             return const_cast< NodeType const * const >( aNodeHandle._handle );
+          }
+        };
+
+        //=====================================================================
+        // Tree Iterators
+        //=====================================================================
+        //=====================================================================
+        // PreOrder Tree Iterator
+        template<typename NodeType>
+        class pre_order_iterator :
+          public boost::iterator_facade < pre_order_iterator<NodeType>, NodeType, boost::forward_traversal_tag > {
+        private:
+          typedef NodeType Node;
+          typedef typename Node::ValueType ValueType;
+          typedef typename Node::ValueRef ValueRef;
+          typedef typename Node::ConstValueRef ConstValueRef;
+          typedef typename Node::NodeRef NodeRef;
+          typedef typename Node::ConstNodeRef ConstNodeRef;
+          typedef typename Node::NodeHandle NodeHandle;
+          typedef typename Node::NodeAllocator NodeAllocator;
+          typedef typename Node::DataAllocator DataAllocator;
+          typedef typename Node::child_node_ltor_iterator child_node_ltor_iterator;
+          typedef std::reference_wrapper<Node> NodeRefWrapper;
+          typedef std::stack<NodeRefWrapper, std::vector<NodeRefWrapper>> Stack;
+          typedef pre_order_iterator<Node> SelfType;
+
+        private:
+          friend class boost::iterator_core_access;
+
+          Stack _stack;
+
+        public:
+          pre_order_iterator( ) {}
+
+          pre_order_iterator( NodeRef aRoot ) {
+            _stack.push( aRoot );
+          }
+
+        private:
+          Node dereference( ) const {
+            auto ret = _stack.top( ).get( );
+            return ret;
+          }
+
+          bool equal( SelfType const& aOther ) const {
+            bool ret = false;
+            if ( _stack.size( ) == aOther._stack.size( ) ) {
+              if ( _stack.top( ).get( ) == aOther._stack.top( ).get( ) ) {
+                ret = true;
+              }
+            }
+
+            return ret;
+          }
+
+          //iterativePreorder( node )
+          //  parentStack = empty stack
+          //  while ( not parentStack.isEmpty( ) or node != null )
+          //    if ( node != null )
+          //      visit( node )
+          //      if ( node.right != null ) parentStack.push( node.right )
+          //        node = node.left
+          //      else
+          //      node = parentStack.pop( )
+          void increment( ) {
+            if ( _stack.empty( ) ) {
+              return;
+            }
+
+            auto& cur = _stack.top( ).get( );
+            _stack.pop( );
+            // Right child is pushed before left child to make sure that left subtree is processed first.
+            for ( auto it = cur.child_node_ltor_begin( );
+                  it != cur.child_node_ltor_end( );
+                  ++it ) {
+              _stack.push( *it );
+            }
           }
         };
       } // _private
@@ -234,17 +317,39 @@ namespace blib {
         NodeHandle _parent;
         ChildrenContainerType _children;
 
+      private:
+        void allocateChildren( ) {
+          //_children = std::make_shared<ChildrenContainerType>( );
+        }
+
+        NodeRef assign( ConstNodeRef aOther ) {
+          _parent = aOther._parent;
+          _data = aOther._data;
+          _children = aOther._children;
+          return *this;
+        }
+
+        ChildrenContainerType& children( ) {
+          return _children;
+        }
       public:
         Node( NodeHandle const& aParent = NodeHandle( ) ) :
-          _parent( aParent ) {}
+          _parent( aParent ) {
+          allocateChildren( );
+        }
+
+        Node( ConstNodeRef aOther ) {
+          assign( aOther );
+        }
 
         Node( ConstValueRef aData, NodeHandle const& aParent ) :
           _parent( aParent ) {
+          allocateChildren( );
           _data = std::allocate_shared<ValueType>( DataAllocator( ), aData );
         }
 
         ~Node( ) {
-          clear( );
+          //clear( );
         }
 
         NodeHandle& parent( ) const {
@@ -274,40 +379,35 @@ namespace blib {
 
         // Access the children by index.
         ValueRef operator[]( const std::size_t aIndex ) {
-          return _children.at( aIndex );
+          return children().at( aIndex );
         }
 
         std::size_t numberOfChildren( ) const {
-          return _children.size( );
+          return children( ).size( );
         }
 
         void addChild( ConstNodeRef aNode ) {
-          _children.push_back( aNode );
-          _children.back( ).parent( handle( ) );
-        }
-
-        void addChild( NodeType&& aNode ) {
-          _children.push_back( aNode );
-          _children.back( ).parent( handle( ) );
+          children( ).push_back( aNode );
+          children( ).back( ).parent( handle( ) );
         }
 
         void addChild( ConstValueRef aValue ) {
           const NodeType n( aValue, handle( ) );
-          _children.push_back( n );
+          children( ).push_back( n );
         }
 
-        //The iterator pos must be valid and dereferenceable. 
-        //Thus the end() iterator (which is valid, but is not dereferencable) cannot be used as a value for pos.
+        // The iterator pos must be valid and dereferenceable. 
+        // Thus the end() iterator (which is valid, but is not dereferencable) cannot be used as a value for pos.
         void removeChild( child_node_ltor_iterator const& aItr ) {
-          _children.erase( _private::IteratorUtility::itr( aItr ) );
+          children( ).erase( _private::IteratorUtility::itr( aItr ) );
         }
 
         std::size_t size( ) const {
-          return _children.size( );
+          return children( ).size( );
         }
 
         bool empty( ) const {
-          return !_data && _children.empty( );
+          return !_data && children( ).empty( );
         }
 
         operator bool( ) const {
@@ -319,8 +419,7 @@ namespace blib {
         }
 
         void clear( ) {
-          _data.reset( );
-          _children.clear( );
+          children( ).clear( );
           _parent = nullptr;
         }
 
@@ -328,7 +427,7 @@ namespace blib {
           bool ret = false;
           if ( aOther._parent == _parent ) {
             if ( aOther._data == _data ) {
-              if ( aOther._children.size( ) == _children.size( ) ) {
+              if ( aOther._children == _children ) {
                 ret = true;
               }
             }
@@ -338,40 +437,37 @@ namespace blib {
         }
 
         NodeRef operator=( ConstNodeRef aOther ) {
-          _parent = aOther._parent;
-          _data = aOther._data;
-          _children = aOther._children;
-          return *this;
+          return assign( aOther );
         }
 
         bool isLeaf( ) const {
-          return _children.empty( );
+          return children( ).empty( );
         }
 
         // To support range based for loop
         // Default iteration is left to right
         child_node_ltor_iterator begin( ) {
-          child_node_ltor_iterator it( _children.begin( ), _children.end( ) );
+          child_node_ltor_iterator it( children( ).begin( ), children( ).end( ) );
           return it;
         }
 
         child_node_ltor_iterator end( ) {
-          child_node_ltor_iterator it( _children.end( ), _children.end( ) );
+          child_node_ltor_iterator it( children( ).end( ), children( ).end( ) );
           return it;
         }
 
         child_node_ltor_iterator child_node_ltor_begin( ) {
-          child_node_ltor_iterator it( _children.begin( ), _children.end( ) );
+          child_node_ltor_iterator it( children( ).begin( ), children( ).end( ) );
           return it;
         }
 
         child_node_ltor_iterator child_node_ltor_end( ) {
-          child_node_ltor_iterator it( _children.end( ), _children.end( ) );
+          child_node_ltor_iterator it( children( ).end( ), children( ).end( ) );
           return it;
         }
 
         child_node_rtol_iterator child_node_rtol_begin( ) {
-          child_node_rtol_iterator it( _children.rbegin( ), _children.rend( ) );
+          child_node_rtol_iterator it( children( ).rbegin( ), children( ).rend( ) );
           return it;
         }
 
@@ -398,15 +494,17 @@ namespace blib {
         typedef typename Node::ConstValueRef ConstValueRef;
         typedef typename Node::NodeRef NodeRef;
         typedef typename Node::ConstNodeRef ConstNodeRef;
+        typedef typename Node::NodeHandle NodeHandle;
         typedef typename Node::NodeAllocator NodeAllocator;
         typedef typename Node::DataAllocator DataAllocator;
         typedef typename Node::child_node_ltor_iterator child_node_ltor_iterator;
         typedef typename Node::child_node_rtol_iterator child_node_rtol_iterator;
+        typedef _private::pre_order_iterator<Node> pre_order_iterator;
         typedef Tree<Node> SelfType;
         typedef std::shared_ptr<Node> NodeSharedPtr;
 
       private:
-        NodeSharedPtr _root;
+        Node _root;
 
       public:
         Tree( ) {}
@@ -416,23 +514,31 @@ namespace blib {
         }
 
         ~Tree( ) {
-          clear( );
+          //clear( );
         }
 
         void root( ConstValueRef aVal ) {
-          _root = std::allocate_shared<Node>( NodeAllocator( ), aVal );
+          _root.data( aVal );
         }
 
         void root( ConstNodeRef aNode ) {
-          _root = std::allocate_shared<Node>( NodeAllocator( ), aNode );
+          _root = aNode;
         }
 
         NodeRef root( ) {
-          return *_root;
+          return _root;
         }
 
         ConstNodeRef root( ) const {
-          return *_root;
+          return _root;
+        }
+
+        bool isRoot( NodeHandle const& aNodeHandle ) const {
+          bool ret = false;
+          if ( aNodeHandle == _root.handle( ) ) {
+            ret = true;
+          }
+          return ret;
         }
 
         bool empty( ) const {
@@ -440,11 +546,7 @@ namespace blib {
         }
 
         operator bool( ) const {
-          bool ret = false;
-          if ( _root ) {
-            ret = true;
-          }
-          return ret;
+          return empty( );
         }
 
         void clear( ) {
@@ -455,12 +557,22 @@ namespace blib {
         }
 
         SelfType& operator=( SelfType const& aOther ) {
-          _root = aOther;
+          _root = aOther._root;
           return *this;
         }
 
         bool operator==( SelfType const& aOther ) const {
           return aOther._root == _root;
+        }
+
+        pre_order_iterator pre_order_begin( ) {
+          pre_order_iterator ret( _root );
+          return ret;
+        }
+
+        pre_order_iterator pre_order_end( ) {
+          pre_order_iterator ret;
+          return ret;
         }
       };
       //=====================================================================
