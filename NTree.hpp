@@ -213,28 +213,41 @@ namespace blib {
         private:
           friend class boost::iterator_core_access;
 
-          Stack _stack;
+          std::shared_ptr<Stack> _stack;
+          std::shared_ptr<Node> _cur;
 
         public:
           pre_order_iterator( ) {}
 
           pre_order_iterator( NodeRef aRoot ) {
-            _stack.push( aRoot );
+            _stack = std::make_shared<Stack>( );
+            _cur = std::make_shared<Node>( );
+            stack( ).push( aRoot );
+            cur( ) = aRoot;
+          }
+
+          pre_order_iterator( pre_order_iterator const& aOther ) {
+            _stack = aOther._stack;
+            _cur = aOther._cur;
           }
 
         private:
-          Node dereference( ) const {
-            auto ret = _stack.top( ).get( );
-            return ret;
+          NodeRef dereference( ) const {
+            return cur( );
           }
 
           bool equal( SelfType const& aOther ) const {
             bool ret = false;
-            if ( _stack.size( ) == aOther._stack.size( ) ) {
-              if ( _stack.top( ).get( ) == aOther._stack.top( ).get( ) ) {
-                ret = true;
-              }
+
+            if ( aOther._cur == _cur ) {
+              ret = true;
             }
+
+            //if ( !stack( ).empty( ) && ( stack( ).size( ) == aOther.stack( ).size( ) ) ) {
+            //  if ( top( ) == aOther.top( ) ) {
+            //    ret = true;
+            //  }
+            //}
 
             return ret;
           }
@@ -249,18 +262,31 @@ namespace blib {
           //      else
           //      node = parentStack.pop( )
           void increment( ) {
-            if ( _stack.empty( ) ) {
+            if ( stack( ).empty( ) ) {
+              _cur.reset( );
               return;
             }
 
-            auto& cur = _stack.top( ).get( );
-            _stack.pop( );
+            cur( ) = top( );
+            stack( ).pop( );
             // Right child is pushed before left child to make sure that left subtree is processed first.
-            for ( auto it = cur.child_node_ltor_begin( );
-                  it != cur.child_node_ltor_end( );
+            for ( auto it = cur( ).child_node_ltor_begin( );
+                  it != cur( ).child_node_ltor_end( );
                   ++it ) {
-              _stack.push( *it );
+              stack( ).push( *it );
             }
+          }
+
+          NodeRef top( ) {
+            return stack( ).top( );
+          }
+
+          Stack& stack( ) {
+            return *_stack;
+          }
+
+          NodeRef cur( ) const {
+            return *_cur;
           }
         };
       } // _private
@@ -377,7 +403,7 @@ namespace blib {
 
         // Access the children by index.
         ValueRef operator[]( const std::size_t aIndex ) {
-          return children().at( aIndex );
+          return children( ).at( aIndex );
         }
 
         std::size_t numberOfChildren( ) const {
