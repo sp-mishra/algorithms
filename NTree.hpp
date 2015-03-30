@@ -339,11 +339,11 @@ namespace blib {
       private:
         std::shared_ptr<ValueType> _data;
         NodeHandle _parent;
-        ChildrenContainerType _children;
+        std::shared_ptr<ChildrenContainerType> _children;
 
       private:
         void allocateChildren( ) {
-          //_children = std::make_shared<ChildrenContainerType>( );
+          _children = std::make_shared<ChildrenContainerType>( );
         }
 
         NodeRef assign( ConstNodeRef aOther ) {
@@ -354,7 +354,7 @@ namespace blib {
         }
 
         ChildrenContainerType& children( ) {
-          return _children;
+          return *_children;
         }
       public:
         Node( NodeHandle const& aParent = NodeHandle( ) ) :
@@ -496,7 +496,7 @@ namespace blib {
         }
 
         child_node_rtol_iterator child_node_rtol_end( ) {
-          child_node_rtol_iterator it( _children.rend( ), _children.rend( ) );
+          child_node_rtol_iterator it( children( ).rend( ), children( ).rend( ) );
           return it;
         }
       };
