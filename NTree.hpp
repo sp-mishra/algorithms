@@ -296,7 +296,123 @@ namespace blib {
           NodeRef cur( ) const {
             return *_cur;
           }
+        };// PreOrder Tree Iterator End
+
+
+        //=====================================================================
+        // PostOrder Tree Iterator 2Stacks
+        //Traverse the left subtree by recursively calling the post - order function.
+        //  Traverse the right subtree by recursively calling the post - order function.
+        //  Display the data part of root element( or current element ).
+        template<typename NodeType>
+        class post_order_2stack_iterator :
+          public boost::iterator_facade < post_order_2stack_iterator<NodeType>, NodeType, boost::forward_traversal_tag > {
+        private:
+          typedef NodeType Node;
+          typedef typename Node::ValueType ValueType;
+          typedef typename Node::ValueRef ValueRef;
+          typedef typename Node::ConstValueRef ConstValueRef;
+          typedef typename Node::NodeRef NodeRef;
+          typedef typename Node::ConstNodeRef ConstNodeRef;
+          typedef typename Node::NodeHandle NodeHandle;
+          typedef typename Node::NodeAllocator NodeAllocator;
+          typedef typename Node::DataAllocator DataAllocator;
+          typedef typename Node::child_node_ltor_iterator child_node_ltor_iterator;
+          typedef std::reference_wrapper<Node> NodeRefWrapper;
+          typedef std::stack<NodeRefWrapper, std::vector<NodeRefWrapper>> Stack;
+          typedef post_order_2stack_iterator<Node> SelfType;
+
+        private:
+          friend class boost::iterator_core_access;
+
+          std::shared_ptr<Stack> _stack1;
+          std::shared_ptr<Stack> _stack2;
+          std::shared_ptr<Node> _cur;
+
+        public:
+          post_order_2stack_iterator( ) {}
+
+          post_order_2stack_iterator( NodeRef aRoot ) {
+            _stack1 = std::make_shared<Stack>( );
+            _stack2 = std::make_shared<Stack>( );
+            _cur = std::make_shared<Node>( );
+            stack1( ).push( aRoot );
+            cur( ) = aRoot;
+            createSecondStack( );
+          }
+
+          post_order_2stack_iterator( post_order_2stack_iterator const& aOther ) {
+            _stack1 = aOther._stack1;
+            _stack2 = aOther._stack2;
+            _cur = aOther._cur;
+          }
+
+        private:
+          NodeRef dereference( ) const {
+            return cur( );
+          }
+
+          bool equal( SelfType const& aOther ) const {
+            bool ret = false;
+            if ( aOther._cur == _cur ) {
+              ret = true;
+            }
+            return ret;
+          }
+
+          // Browse the second stack
+          void increment( ) {
+            if ( stack2( ).empty( ) ) {
+              _cur.reset( );
+            }
+            else {
+              cur( ) = top( );
+              stack2( ).pop( );
+            }
+          }
+
+          // http://www.geeksforgeeks.org/iterative-postorder-traversal-using-stack/
+          //1. Push root to first stack.
+          //2. Loop while first stack is not empty
+          //  2.1 Pop a node from first stack and push it to second stack
+          //  2.2 Push left and right children of the popped node to first stack
+          //3. Print contents of second stack
+          void createSecondStack( ) {
+            // Populate the second stack
+            while ( !stack1( ).empty( ) ) {
+              NodeRef node = stack1( ).top( );
+              stack1( ).pop( );
+              for ( auto& n : node ) {
+                stack1( ).push( n );
+              }
+              stack2( ).push( node );
+            }
+
+            //Free stack1, we dont need it further
+            _stack1.reset( );
+            if ( !stack2( ).empty( ) ) {
+              cur( ) = top( );
+              stack2( ).pop( );
+            }
+          }
+
+          NodeRef top( ) {
+            return stack2( ).top( );
+          }
+
+          Stack& stack1( ) {
+            return *_stack1;
+          }
+
+          Stack& stack2( ) {
+            return *_stack2;
+          }
+
+          NodeRef cur( ) const {
+            return *_cur;
+          }
         };
+        // PostOrder Tree Iterator 2Stacks End
       } // _private
 
       //=====================================================================
@@ -440,7 +556,7 @@ namespace blib {
 
         // Return true when there is no data and there is no children
         bool empty( ) const {
-          return !_data && (!_children || children( ).empty( ));
+          return !_data && ( !_children || children( ).empty( ) );
         }
 
         // Return false when there is no data in the node. Else return true
@@ -534,6 +650,7 @@ namespace blib {
         typedef typename Node::child_node_ltor_iterator child_node_ltor_iterator;
         typedef typename Node::child_node_rtol_iterator child_node_rtol_iterator;
         typedef _private::pre_order_iterator<Node> pre_order_iterator;
+        typedef _private::post_order_2stack_iterator<Node> post_order_iterator;
         typedef Tree<Node> SelfType;
         typedef std::shared_ptr<Node> NodeSharedPtr;
 
@@ -606,6 +723,16 @@ namespace blib {
 
         pre_order_iterator pre_order_end( ) {
           pre_order_iterator ret;
+          return ret;
+        }
+
+        post_order_iterator post_order_begin( ) {
+          post_order_iterator ret( _root );
+          return ret;
+        }
+
+        post_order_iterator post_order_end( ) {
+          post_order_iterator ret;
           return ret;
         }
       };
