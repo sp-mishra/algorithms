@@ -267,13 +267,21 @@ namespace blib {
               return;
             }
 
-            cur( ) = top( );
+            // _cur already points to the top, so just pop it
             stack( ).pop( );
             // Right child is pushed before left child to make sure that left subtree is processed first.
-            for ( auto it = cur( ).child_node_ltor_begin( );
-                  it != cur( ).child_node_ltor_end( );
+            for ( auto it = cur( ).child_node_rtol_begin( );
+                  it != cur( ).child_node_rtol_end( );
                   ++it ) {
               stack( ).push( *it );
+            }
+
+            // If the stack is not empty then only assign 
+            if ( !stack( ).empty( ) ) {
+              cur( ) = top( );
+            }
+            else {
+              _cur.reset( );
             }
           }
 
@@ -430,10 +438,12 @@ namespace blib {
           return children( ).size( );
         }
 
+        // Return true when there is no data and there is no children
         bool empty( ) const {
-          return !_data && children( ).empty( );
+          return !_data && (!_children || children( ).empty( ));
         }
 
+        // Return false when there is no data in the node. Else return true
         operator bool( ) const {
           bool ret = false;
           if ( _data ) {
