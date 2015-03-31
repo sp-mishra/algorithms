@@ -481,6 +481,10 @@ namespace blib {
           //  b) Enqueue temp_node’s children( first left then right children ) to q
           //  c) Dequeue a node from q and assign it’s value to temp_node
           void increment( ) {
+            if ( !_cur ) {
+              return;
+            }
+
             if ( queue( ).empty( ) ) {
               _cur.reset( );
             }
@@ -490,7 +494,13 @@ namespace blib {
               for ( auto& n : cur( ) ) {
                 queue( ).push( n );
               }
-              cur( queue( ).front( ) );
+              // Push only if there is something in the queue
+              if ( !queue( ).empty( ) ) {
+                cur( queue( ).front( ) );
+              }
+              else {
+                _cur.reset( );
+              }
             }
           }
 
@@ -502,7 +512,7 @@ namespace blib {
             return *_cur;
           }
 
-          void cur( Node const& aNode ) const {
+          void cur( ConstNodeRef aNode ) const {
             *_cur = aNode;
           }
         };// LevelOrder Tree Iterator End
