@@ -1,10 +1,8 @@
-//#include "renderer/Render.hpp"
-#include "geometry/BasicGeometry.hpp"
 #include "containers/tree/NTree.hpp"
 #include <iostream>
 
 typedef blib::container::tree::Node<int> Node;
-typedef blib::container::tree::Tree<Node> Tree;
+typedef blib::container::tree::NTree<Node> Tree;
 
 void nodeOperationsTest( ) {
   std::cout << "Node operations start" << std::endl;
