@@ -748,10 +748,10 @@ namespace blib {
 
 
       //=====================================================================
-      // Tree Definition
+      // NTree Definition
       //=====================================================================
       template<typename NodeType>
-      class Tree {
+      class NTree {
       public:
         typedef NodeType Node;
         typedef typename Node::ValueType ValueType;
@@ -767,20 +767,20 @@ namespace blib {
         typedef _private::pre_order_iterator<Node> pre_order_iterator;
         typedef _private::post_order_2stack_iterator<Node> post_order_iterator;
         typedef _private::level_order_iterator<Node> level_order_iterator;
-        typedef Tree<Node> SelfType;
+        typedef NTree<Node> SelfType;
         typedef std::shared_ptr<Node> NodeSharedPtr;
 
       private:
         Node _root;
 
       public:
-        Tree( ) {}
+        NTree( ) {}
 
-        Tree( ConstNodeRef aNode ) {
+        NTree( ConstNodeRef aNode ) {
           root( aNode );
         }
 
-        ~Tree( ) {
+        ~NTree( ) {
           //clear( );
         }
 
@@ -863,7 +863,7 @@ namespace blib {
         }
       };
       //=====================================================================
-      // Tree End
+      // NTree End
     }
   }
 }
