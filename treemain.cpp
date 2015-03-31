@@ -1,5 +1,3 @@
-//#include "renderer/Render.hpp"
-#include "geometry/BasicGeometry.hpp"
 #include "containers/tree/NTree.hpp"
 #include <iostream>
 
@@ -88,11 +86,11 @@ void createTree( Tree& t ) {
   t.root( r );
 }
 
-void preOrderTest( ) {
+void preOrderTest( Tree& t ) {
   std::cout << "preOrderTest start" << std::endl;
-  Tree t;
-  createTree( t );
-  for ( auto it = t.pre_order_begin( ); it != t.pre_order_end( ); ++it ) {
+  for ( auto it = t.pre_order_begin( );
+        it != t.pre_order_end( );
+        ++it ) {
     auto n = *it;
     if ( n ) {
       std::cout << n.data( ) << " ";
@@ -101,10 +99,40 @@ void preOrderTest( ) {
   std::cout << "\npreOrderTest end" << std::endl;
 }
 
+void postOrderTest( Tree& t ) {
+  std::cout << "postOrderTest start" << std::endl;
+  for ( auto it = t.post_order_begin( );
+        it != t.post_order_end( );
+        ++it ) {
+    auto n = *it;
+    if ( n ) {
+      std::cout << n.data( ) << " ";
+    }
+  }
+  std::cout << "\npostOrderTest end" << std::endl;
+}
+
+void levelOrderTest( Tree& t ) {
+  std::cout << "levelOrderTest start" << std::endl;
+  for ( auto it = t.post_order_begin( );
+        it != t.post_order_end( );
+        ++it ) {
+    auto n = *it;
+    if ( n ) {
+      std::cout << n.data( ) << " ";
+    }
+  }
+  std::cout << "\nlevelOrderTest end" << std::endl;
+}
+
 int main( int/* argc*/, char ** /*argv[]*/ ) {
   try {
     nodeOperationsTest( );
-    preOrderTest( );
+    Tree t;
+    createTree( t );
+    preOrderTest(t );
+    postOrderTest( t );
+    levelOrderTest( t );
   }
   catch ( std::exception& e ) {
     std::cout << "exception = " << e.what( ) << std::endl;
