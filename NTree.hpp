@@ -7,6 +7,7 @@
 // Author: BrainlessLibraries
 
 #include <vector>
+#include <queue>
 #include <stack>
 #include <functional>
 #include <boost/iterator/iterator_facade.hpp>
@@ -221,9 +222,8 @@ namespace blib {
 
           pre_order_iterator( NodeRef aRoot ) {
             _stack = std::make_shared<Stack>( );
-            _cur = std::make_shared<Node>( );
+            _cur = std::make_shared<Node>( aRoot );
             stack( ).push( aRoot );
-            cur( ) = aRoot;
           }
 
           pre_order_iterator( pre_order_iterator const& aOther ) {
@@ -278,7 +278,7 @@ namespace blib {
 
             // If the stack is not empty then only assign 
             if ( !stack( ).empty( ) ) {
-              cur( ) = top( );
+              cur( top( ) );
             }
             else {
               _cur.reset( );
@@ -295,6 +295,10 @@ namespace blib {
 
           NodeRef cur( ) const {
             return *_cur;
+          }
+
+          void cur( ConstNodeRef aNode ) const {
+            *_cur = aNode;
           }
         };// PreOrder Tree Iterator End
 
@@ -335,9 +339,8 @@ namespace blib {
           post_order_2stack_iterator( NodeRef aRoot ) {
             _stack1 = std::make_shared<Stack>( );
             _stack2 = std::make_shared<Stack>( );
-            _cur = std::make_shared<Node>( );
+            _cur = std::make_shared<Node>( aRoot );
             stack1( ).push( aRoot );
-            cur( ) = aRoot;
             createSecondStack( );
           }
 
@@ -366,7 +369,7 @@ namespace blib {
               _cur.reset( );
             }
             else {
-              cur( ) = top( );
+              cur( top( ) );
               stack2( ).pop( );
             }
           }
@@ -391,7 +394,7 @@ namespace blib {
             //Free stack1, we dont need it further
             _stack1.reset( );
             if ( !stack2( ).empty( ) ) {
-              cur( ) = top( );
+              cur( top( ) );
               stack2( ).pop( );
             }
           }
@@ -411,8 +414,98 @@ namespace blib {
           NodeRef cur( ) const {
             return *_cur;
           }
+
+          void cur( NodeRef aNode ) const {
+            *_cur = aNode;
+          }
         };
         // PostOrder Tree Iterator 2Stacks End
+
+        //=====================================================================
+        // LevelOrder Tree Iterator
+        template<typename NodeType>
+        class level_order_iterator :
+          public boost::iterator_facade < level_order_iterator<NodeType>, NodeType, boost::forward_traversal_tag > {
+        private:
+          typedef NodeType Node;
+          typedef typename Node::ValueType ValueType;
+          typedef typename Node::ValueRef ValueRef;
+          typedef typename Node::ConstValueRef ConstValueRef;
+          typedef typename Node::NodeRef NodeRef;
+          typedef typename Node::ConstNodeRef ConstNodeRef;
+          typedef typename Node::NodeHandle NodeHandle;
+          typedef typename Node::NodeAllocator NodeAllocator;
+          typedef typename Node::DataAllocator DataAllocator;
+          typedef typename Node::child_node_ltor_iterator child_node_ltor_iterator;
+          typedef std::reference_wrapper<Node> NodeRefWrapper;
+          typedef std::queue<NodeRefWrapper> Queue;
+          typedef level_order_iterator<Node> SelfType;
+
+        private:
+          friend class boost::iterator_core_access;
+
+          std::shared_ptr<Queue> _queue;
+          std::shared_ptr<Node> _cur;
+
+        public:
+          level_order_iterator( ) {}
+
+          level_order_iterator( NodeRef aRoot ) {
+            _queue = std::make_shared<Queue>( );
+            _cur = std::make_shared<Node>( aRoot );
+            queue( ).push( aRoot );
+          }
+
+          level_order_iterator( level_order_iterator const& aOther ) {
+            _queue = aOther._queue;
+            _cur = aOther._cur;
+          }
+
+        private:
+          NodeRef dereference( ) const {
+            return cur( );
+          }
+
+          bool equal( SelfType const& aOther ) const {
+            bool ret = false;
+            if ( aOther._cur == _cur ) {
+              ret = true;
+            }
+            return ret;
+          }
+
+          //1) Create an empty queue q
+          //2) temp_node = root /*start from root*/
+          //3) Loop while temp_node is not NULL
+          //  a) print temp_node->data.
+          //  b) Enqueue temp_node’s children( first left then right children ) to q
+          //  c) Dequeue a node from q and assign it’s value to temp_node
+          void increment( ) {
+            if ( queue( ).empty( ) ) {
+              _cur.reset( );
+            }
+            else {
+              // Pop it, _cur already contains it
+              queue( ).pop( );
+              for ( auto& n : cur( ) ) {
+                queue( ).push( n );
+              }
+              cur( queue( ).front( ) );
+            }
+          }
+
+          Queue& queue( ) {
+            return *_queue;
+          }
+
+          NodeRef cur( ) const {
+            return *_cur;
+          }
+
+          void cur( Node const& aNode ) const {
+            *_cur = aNode;
+          }
+        };// LevelOrder Tree Iterator End
       } // _private
 
       //=====================================================================
@@ -436,6 +529,7 @@ namespace blib {
 
       //=====================================================================
       // Tree Node
+      //=====================================================================
       template<
         typename NodeDataType,
         typename DataAlloc = std::allocator<NodeDataType>,
@@ -531,7 +625,21 @@ namespace blib {
         }
 
         std::size_t numberOfChildren( ) const {
-          return children( ).size( );
+          std::size_t ret = 0;
+          if ( hasChildren( ) ) {
+            ret = children( ).size( );
+          }
+          return ret;
+        }
+
+        bool hasChildren( ) const {
+          bool ret = false;
+          if ( _children ) {
+            if ( !_children->empty( ) ) {
+              ret = true;
+            }
+          }
+          return ret;
         }
 
         void addChild( ConstNodeRef aNode ) {
@@ -626,15 +734,12 @@ namespace blib {
           return it;
         }
       };
+      // Tree Node End
 
-      //=====================================================================
-      // Tree Declaration
-      template<typename NodeType>
-      class Tree;
-      //=====================================================================
 
       //=====================================================================
       // Tree Definition
+      //=====================================================================
       template<typename NodeType>
       class Tree {
       public:
@@ -651,6 +756,7 @@ namespace blib {
         typedef typename Node::child_node_rtol_iterator child_node_rtol_iterator;
         typedef _private::pre_order_iterator<Node> pre_order_iterator;
         typedef _private::post_order_2stack_iterator<Node> post_order_iterator;
+        typedef _private::level_order_iterator<Node> level_order_iterator;
         typedef Tree<Node> SelfType;
         typedef std::shared_ptr<Node> NodeSharedPtr;
 
@@ -735,8 +841,19 @@ namespace blib {
           post_order_iterator ret;
           return ret;
         }
+
+        level_order_iterator level_order_begin( ) {
+          level_order_iterator ret( _root );
+          return ret;
+        }
+
+        level_order_iterator level_order_end( ) {
+          level_order_iterator ret;
+          return ret;
+        }
       };
       //=====================================================================
+      // Tree End
     }
   }
 }
