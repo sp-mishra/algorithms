@@ -114,8 +114,8 @@ void postOrderTest( Tree& t ) {
 
 void levelOrderTest( Tree& t ) {
   std::cout << "levelOrderTest start" << std::endl;
-  for ( auto it = t.post_order_begin( );
-        it != t.post_order_end( );
+  for ( auto it = t.level_order_begin( );
+        it != t.level_order_end( );
         ++it ) {
     auto n = *it;
     if ( n ) {
