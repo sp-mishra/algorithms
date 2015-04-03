@@ -6,6 +6,7 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 // Author: BrainlessLibraries
 
+#include <memory>
 #include <vector>
 #include <queue>
 #include <stack>

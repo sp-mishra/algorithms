@@ -11,3 +11,6 @@
 *.lai
 *.la
 *.a
+
+# Cloud9 Files
+ .c9/*
