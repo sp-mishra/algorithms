@@ -1,0 +1,1 @@
+This chapter will focus on string algorithms.
