@@ -1,5 +1,5 @@
 # Summary
 
 * [Introduction](Book/introduction.md)
-* Strings
+* [Strings](Book/strings.md)
 
