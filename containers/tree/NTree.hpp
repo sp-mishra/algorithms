@@ -1,5 +1,4 @@
-#ifndef BLIB_NTREE_HPP
-#define BLIB_NTREE_HPP
+#pragma once
 
 /* This Source Code Form is subject to the terms of the Mozilla Public
 * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -868,5 +867,3 @@ namespace blib {
     }
   }
 }
-
-#endif // BLIB_NTREE_HPP
